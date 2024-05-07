@@ -7,6 +7,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Add controllers
+builder.Services.AddControllers();
+
 // Add dependencies
 builder.Services.AddScoped<IBooksRepository, BooksRepository>();
 
@@ -20,5 +23,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Map controllers
+app.MapControllers();
 
 app.Run();
