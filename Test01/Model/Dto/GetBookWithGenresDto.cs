@@ -10,6 +10,4 @@ public class GetBookWithGenresDto
 public class GetGenreDto
 {
     public string Genre { get; set; } = string.Empty;
-    
-    
 }

@@ -30,6 +30,36 @@ public class BooksRepository : IBooksRepository
         return res is not null;
     }
 
+    public async Task<bool> DoesAllGenresExist(List<int> ids)
+    {
+	    var allExist = true;
+	    var query = "SELECT 1 FROM genres WHERE PK = @ID";
+
+	    await using SqlConnection connection = new SqlConnection(_configuration.GetConnectionString("Default"));
+	    await using SqlCommand command = new SqlCommand();
+
+	    command.Connection = connection;
+	    command.CommandText = query;
+	    
+	    await connection.OpenAsync();
+	    
+	    foreach (var id in ids)
+	    {
+		    command.Parameters.Clear();
+		    command.Parameters.AddWithValue("@ID", id);
+
+		    var res = await command.ExecuteScalarAsync();
+
+		    if (res is null)
+		    {
+			    allExist = false;
+			    break;
+		    }
+	    }
+
+	    return allExist;
+    }
+
     public async Task<List<GetGenreDto>> GetBookGenres(int id)
     {
 	    var query =	@"
@@ -111,5 +141,71 @@ public class BooksRepository : IBooksRepository
 	    }
 	    
 	    return getBookWithGenresDto;
+    }
+    
+    public async Task<GetBookWithGenresDto> AddNewBookWithGenres(CreateBookWithGenresDto createBookWithGenresDto)
+    {
+	    var insert = @"INSERT INTO books VALUES(@title); SELECT @@IDENTITY AS ID;";
+	    
+	    await using SqlConnection connection = new SqlConnection(_configuration.GetConnectionString("Default"));
+	    await using SqlCommand command = new SqlCommand();
+	    
+	    command.Connection = connection;
+	    command.CommandText = insert;
+	    
+	    command.Parameters.AddWithValue("@title", createBookWithGenresDto.Title);
+	    
+	    await connection.OpenAsync();
+	    
+
+	    var transaction = await connection.BeginTransactionAsync();
+	    command.Transaction = transaction as SqlTransaction;
+	    
+	    var id = await command.ExecuteScalarAsync();
+	    
+	    try
+	    {
+		    foreach (var genreId in createBookWithGenresDto.GenreIds)
+		    {
+			    command.Parameters.Clear();
+			    command.CommandText = "INSERT INTO books_genres VALUES(@ID, @genreID)";
+			    command.Parameters.AddWithValue("@ID", id);
+			    command.Parameters.AddWithValue("@genreID", genreId);
+
+			    await command.ExecuteNonQueryAsync();
+		    }
+
+		    await transaction.CommitAsync();
+	    }
+	    catch (Exception)
+	    {
+		    await transaction.RollbackAsync();
+		    throw;
+	    }
+
+	    var result = await GetBookWithGenres(Convert.ToInt32(id));
+
+	    return result;
+    }
+
+    public async Task<int> AddNewBook(CreateBookDto createBookDto)
+    {
+	    var insert = @"INSERT INTO books VALUES(@title); SELECT @@IDENTITY AS ID;";
+	    
+	    await using SqlConnection connection = new SqlConnection(_configuration.GetConnectionString("Default"));
+	    await using SqlCommand command = new SqlCommand();
+	    
+	    command.Connection = connection;
+	    command.CommandText = insert;
+	    
+	    command.Parameters.AddWithValue("@title", createBookDto.Title);
+	    
+	    await connection.OpenAsync();
+	    
+	    var id = await command.ExecuteScalarAsync();
+
+	    if (id is null) throw new Exception();
+	    
+	    return Convert.ToInt32(id);
     }
 }
