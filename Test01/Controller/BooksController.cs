@@ -20,7 +20,6 @@ public class BooksController : ControllerBase
     {
         if (!await _booksRepository.DoesBookExist(id))
         {
-            Console.WriteLine("----------------------------------------");
             return NotFound($"Book with given ID - {id} doesn't exist");
         }
         
